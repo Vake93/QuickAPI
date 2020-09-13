@@ -18,13 +18,6 @@ namespace QuickAPI
 
         public string Password { get; }
 
-        public string UpdateConnectionString(string connectionString)
-        {
-            return connectionString
-                .Replace("{username}", Username)
-                .Replace("{password}", Password);
-        }
-
         public static Credentials Authenticate(HttpContext context)
         {
             if (context.Request.Headers.ContainsKey("Authorization"))

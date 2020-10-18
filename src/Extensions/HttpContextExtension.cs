@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Http;
 using QuickAPI.Exceptions;
 using System;
+using System.Buffers;
 using System.Net;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace QuickAPI.Extensions
@@ -10,6 +12,11 @@ namespace QuickAPI.Extensions
     public static class HttpContextExtension
     {
         private const string _jsonContentType = "application/json";
+
+        public static ValueTask<TModel> ReadModelAsync<TModel>(this HttpContext httpContext, CancellationToken cancellationToken = default)
+        {
+            return JsonSerializer.DeserializeAsync<TModel>(httpContext.Request.Body, cancellationToken: cancellationToken);
+        }
 
         public static Task WriteResponseAsync(this HttpContext httpContext, object data, HttpStatusCode statusCode)
         {

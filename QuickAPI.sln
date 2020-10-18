@@ -5,6 +5,8 @@ VisualStudioVersion = 16.0.30413.136
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "QuickAPI", "src\QuickAPI.csproj", "{C0793347-8D0D-4CC0-90B9-2F0FE91C798C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuickAPI.Tests", "QuickAPI.Tests\QuickAPI.Tests.csproj", "{72ED876F-EFAD-42C6-8798-6066CEC7840C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{C0793347-8D0D-4CC0-90B9-2F0FE91C798C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C0793347-8D0D-4CC0-90B9-2F0FE91C798C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C0793347-8D0D-4CC0-90B9-2F0FE91C798C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{72ED876F-EFAD-42C6-8798-6066CEC7840C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{72ED876F-EFAD-42C6-8798-6066CEC7840C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{72ED876F-EFAD-42C6-8798-6066CEC7840C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{72ED876F-EFAD-42C6-8798-6066CEC7840C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

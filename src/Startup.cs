@@ -8,6 +8,7 @@ using Microsoft.OpenApi.Extensions;
 using Microsoft.OpenApi.Models;
 using QuickAPI.Configurations;
 using QuickAPI.Extensions;
+using QuickAPI.Security;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -56,7 +57,7 @@ namespace QuickAPI
                     Title = string.IsNullOrEmpty(SwaggerConfig?.Title) ? _defaultTitle : SwaggerConfig.Title
                 },
                 Paths = new OpenApiPaths(),
-                Components = EndpointConfiguration.UseDatabaseAuth && _openApiSecurityScheme is OpenApiSecurityScheme ?
+                Components = AuthEnabled && _openApiSecurityScheme is OpenApiSecurityScheme ?
                 new OpenApiComponents
                 {
                     SecuritySchemes = new Dictionary<string, OpenApiSecurityScheme>
@@ -71,7 +72,11 @@ namespace QuickAPI
 
         public EndpointConfiguration EndpointConfiguration { get; }
 
-        public Swagger? SwaggerConfig => EndpointConfiguration?.Swagger;
+        public AuthenticationConfiguration? AuthConfig => EndpointConfiguration?.Authentication;
+
+        public bool AuthEnabled => AuthConfig is AuthenticationConfiguration;
+
+        public SwaggerConfiguration? SwaggerConfig => EndpointConfiguration?.Swagger;
 
         public bool SwaggerEnabled => SwaggerConfig?.Enabled ?? false;
 
@@ -139,7 +144,7 @@ namespace QuickAPI
         {
             try
             {
-                var credentials = EndpointConfiguration.UseDatabaseAuth ? Credentials.Authenticate(context) : null;
+                var credentials = AuthEnabled ? Credentials.Authenticate(context, AuthConfig!) : null;
                 var parameterValues = RequestParameterValues.ResolveParameters(context, endpointDefinition);
 
                 using var requestDbConnection = RequestDbConnection.GetRequestDbConnection(EndpointConfiguration, credentials);
@@ -205,7 +210,7 @@ namespace QuickAPI
 
             var security = Array.Empty<OpenApiSecurityRequirement>();
 
-            if (EndpointConfiguration.UseDatabaseAuth)
+            if (AuthEnabled)
             {
                 responses["401"] = new OpenApiResponse
                 {

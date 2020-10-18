@@ -13,20 +13,34 @@ namespace QuickAPI.Configurations
         SqlServer
     }
 
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public enum AuthType
+    {
+        Basic,
+        Jwt
+    }
+
     public class EndpointConfiguration
     {
         public DatabaseType Database { get; set; }
 
-        public bool UseDatabaseAuth { get; set; }
+        public AuthenticationConfiguration? Authentication { get; set; }
 
         public string DatabaseConnection { get; set; } = string.Empty;
 
-        public Swagger? Swagger { get; set; }
+        public SwaggerConfiguration? Swagger { get; set; }
 
         public EndpointDefinition[]? Endpoints { get; set; }
     }
 
-    public class Swagger
+    public class AuthenticationConfiguration
+    {
+        public AuthType AuthType { get; set; }
+
+        public string? SecurityKey { get; set; }
+    }
+
+    public class SwaggerConfiguration
     {
         public bool Enabled { get; set; }
 

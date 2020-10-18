@@ -4,6 +4,7 @@ using QuickAPI.Configurations;
 using QuickAPI.Exceptions;
 using QuickAPI.Extensions;
 using System;
+using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.IO;
 using System.Net.Http.Headers;
@@ -28,6 +29,23 @@ namespace QuickAPI.Security
         private static readonly RNGCryptoServiceProvider _rngCryptoService = new RNGCryptoServiceProvider();
         private static readonly JwtSecurityTokenHandler _jwtSecurityTokenHandler = new JwtSecurityTokenHandler();
 
+        public Credentials(Dictionary<string, string> data)
+        {
+            var username = string.Empty;
+            var password = string.Empty;
+
+            if ((data?.TryGetValue("username", out username) ?? false) &&
+                (data?.TryGetValue("password", out password) ?? false))
+            {
+                Username = username!;
+                Password = password!;
+            }
+            else
+            {
+                throw new CredentialsException("Invalid Credentials");
+            }
+        }
+
         private Credentials(string username, string password)
         {
             Username = username;
@@ -38,12 +56,11 @@ namespace QuickAPI.Security
 
         public string Password { get; }
 
-        public static async Task<JwtToken> LoginAsnc(HttpContext context, AuthenticationConfiguration authConfig)
+        public JwtToken Login(AuthenticationConfiguration authConfig)
         {
             if (authConfig.AuthType == AuthType.Jwt)
             {
-                var credentials = await context.ReadModelAsync<Credentials>();
-                return CreateJwtToken(authConfig, credentials);
+                return CreateJwtToken(authConfig, this);
             }
 
             throw new CredentialsException("Login failed");

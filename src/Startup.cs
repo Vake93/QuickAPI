@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi;
-using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Extensions;
 using Microsoft.OpenApi.Models;
 using QuickAPI.Configurations;
@@ -11,7 +10,6 @@ using QuickAPI.Extensions;
 using QuickAPI.Security;
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -20,10 +18,9 @@ namespace QuickAPI
 {
     public class Startup
     {
-        private const string _defaultVersion = "1.0.0";
         private const string _defaultTitle = "QuickAPI";
+        private const string _loginEndpoint = "/api/login";
         private const string _apiDocumentPath = "/api-document";
-        private const string _openApiSecuritySchemeReferenceId = "Basic Authorization";
 
         private readonly OpenApiDocument? _openApiDocument;
         private readonly OpenApiSecurityScheme? _openApiSecurityScheme;
@@ -36,36 +33,13 @@ namespace QuickAPI
                 .GetSection("EndpointConfiguration")
                 .Get<EndpointConfiguration>();
 
-            _openApiSecurityScheme = SwaggerEnabled ? new OpenApiSecurityScheme
-            {
-                Name = "Authorization",
-                Type = SecuritySchemeType.Http,
-                Scheme = "basic",
-                In = ParameterLocation.Header,
-                Reference = new OpenApiReference
-                {
-                    Id = _openApiSecuritySchemeReferenceId,
-                    Type = ReferenceType.SecurityScheme
-                }
-            } : null;
+            _openApiSecurityScheme = SwaggerEnabled && AuthEnabled ?
+                AuthConfig!.BuildOpenApiSecurityScheme() :
+                null;
 
-            _openApiDocument = SwaggerEnabled ? new OpenApiDocument
-            {
-                Info = new OpenApiInfo
-                {
-                    Version = string.IsNullOrEmpty(SwaggerConfig?.Version) ? _defaultVersion : SwaggerConfig.Version,
-                    Title = string.IsNullOrEmpty(SwaggerConfig?.Title) ? _defaultTitle : SwaggerConfig.Title
-                },
-                Paths = new OpenApiPaths(),
-                Components = AuthEnabled && _openApiSecurityScheme is OpenApiSecurityScheme ?
-                new OpenApiComponents
-                {
-                    SecuritySchemes = new Dictionary<string, OpenApiSecurityScheme>
-                    {
-                        [_openApiSecuritySchemeReferenceId] = _openApiSecurityScheme
-                    }
-                } : null,
-            } : null;
+            _openApiDocument = SwaggerEnabled ?
+                SwaggerConfig!.BuildOpenApiDocument(_openApiSecurityScheme) :
+                null;
         }
 
         public IConfiguration Configuration { get; }
@@ -121,8 +95,20 @@ namespace QuickAPI
 
                         if (SwaggerEnabled && _openApiDocument is OpenApiDocument)
                         {
-                            var openApiPathItem = BuilOpenApiPathItem(endpointDefinition);
-                            _openApiDocument.Paths[endpointDefinition.EndpointPath] = openApiPathItem;
+                            _openApiDocument.AddOpenApiPathItem(endpointDefinition, _openApiSecurityScheme);
+                        }
+                    }
+
+                    if (AuthConfig?.AuthType == AuthType.Jwt)
+                    {
+                        endpoints.MapPost(_loginEndpoint, async context =>
+                        {
+                            await HanldeLoginAsync(context, logger);
+                        });
+
+                        if (SwaggerEnabled && _openApiDocument is OpenApiDocument)
+                        {
+                            _openApiDocument.AddLoginApiPathItem(_loginEndpoint);
                         }
                     }
                 }
@@ -160,6 +146,33 @@ namespace QuickAPI
             }
         }
 
+        private async Task HanldeLoginAsync(HttpContext context, ILogger logger)
+        {
+            try
+            {
+                var credentialData = await context.ReadModelAsync<Dictionary<string, string>>();
+                var credentials = new Credentials(credentialData);
+
+                using var requestDbConnection = RequestDbConnection.GetRequestDbConnection(EndpointConfiguration, credentials);
+                var loginOk = await requestDbConnection.TestLoginAsync();
+
+                if (loginOk)
+                {
+                    var tokens = credentials.Login(AuthConfig!);
+                    await context.WriteResponseAsync(tokens, HttpStatusCode.OK);
+                }
+                else
+                {
+                    await context.WriteResponseAsync(new { Error = "Invalid Credentials" }, HttpStatusCode.Unauthorized);
+                }
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, e.Message);
+                await context.WriteErrorResponseAsync(e);
+            }
+        }
+
         private void ConfigureFallbackEndpoint(IApplicationBuilder app, ILogger logger)
         {
             logger.LogError("Incomplete or invalid configuration");
@@ -169,76 +182,6 @@ namespace QuickAPI
                 endpoints.MapFallback(async context =>
                     await context.WriteErrorResponseAsync("Incomplete or invalid configuration"));
             });
-        }
-
-        private OpenApiPathItem BuilOpenApiPathItem(EndpointDefinition endpointDefinition)
-        {
-            var anyGrouping = !string.IsNullOrEmpty(endpointDefinition.Grouping);
-
-            var tags = new OpenApiTag[]
-            {
-                new OpenApiTag
-                {
-                    Name = anyGrouping ? endpointDefinition.Grouping : _defaultTitle
-                }
-            };
-
-            var anyParameters = endpointDefinition.ParameterBindings?.Any() ?? false;
-
-            var parameters = anyParameters ?
-                endpointDefinition.ParameterBindings.Select(
-                    pb => new OpenApiParameter
-                    {
-                        Name = pb.Key,
-                        In = endpointDefinition.ResolveParameterLocation(pb.Key),
-                        Schema = new OpenApiSchema
-                        {
-                            Type = Enum.GetName(typeof(DbType), pb.Value.Type),
-                            Nullable = pb.Value.HasDefaultValue,
-                            Default = pb.Value.HasDefaultValue ? new OpenApiString(pb.Value.DefaultValue) : null
-                        }
-                    })
-                .ToArray() : null;
-
-            var responses = new OpenApiResponses
-            {
-                ["200"] = new OpenApiResponse
-                {
-                    Description = "Success Response"
-                }
-            };
-
-            var security = Array.Empty<OpenApiSecurityRequirement>();
-
-            if (AuthEnabled)
-            {
-                responses["401"] = new OpenApiResponse
-                {
-                    Description = "Unauthorized Response"
-                };
-
-                security = new OpenApiSecurityRequirement[]
-                {
-                    new OpenApiSecurityRequirement
-                    {
-                        [_openApiSecurityScheme] = Array.Empty<string>()
-                    }
-                };
-            }
-
-            return new OpenApiPathItem
-            {
-                Operations = new Dictionary<OperationType, OpenApiOperation>
-                {
-                    [OperationType.Get] = new OpenApiOperation
-                    {
-                        Tags = tags,
-                        Parameters = parameters,
-                        Responses = responses,
-                        Security = security
-                    }
-                }
-            };
         }
     }
 }

@@ -13,10 +13,5 @@
         public string Token { get; }
 
         public string RefreshToken { get; }
-
-        public override string ToString()
-        {
-            return $"Token: {Token}, RefreshToken: {RefreshToken}";
-        }
     }
 }

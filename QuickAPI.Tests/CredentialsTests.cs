@@ -2,7 +2,9 @@ using NUnit.Framework;
 using QuickAPI.Configurations;
 using QuickAPI.Security;
 using System;
+using System.Collections.Generic;
 using System.Reflection;
+using System.Text.Json;
 
 namespace QuickAPI.Tests
 {
@@ -78,6 +80,34 @@ namespace QuickAPI.Tests
                 parameters: new object[] { authConfig, credentials });
 
             Assert.NotNull(jwtToken);
+        }
+
+        [Test]
+        public void TestCredentialJsonSerialization()
+        {
+            const string targetJson = "{\"username\":\"postgres\",\"password\":\"postgres\"}";
+
+            var credentials = Activator.CreateInstance(
+                typeof(Credentials),
+                BindingFlags.NonPublic | BindingFlags.Instance,
+                binder: null,
+                args: new object[] { "postgres", "postgres" },
+                culture: null);
+
+            var json = JsonSerializer.Serialize(
+                credentials,
+                new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                });
+
+            Assert.AreEqual(targetJson, json);
+
+            var data = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+
+            credentials = new Credentials(data);
+
+            Assert.NotNull(credentials);
         }
     }
 }
